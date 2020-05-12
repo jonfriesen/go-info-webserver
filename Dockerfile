@@ -4,3 +4,5 @@ ADD . /server
 WORKDIR /server
 RUN go build
 RUN ./capture-build-envs.sh
+
+CMD [ "/server/server" ]
