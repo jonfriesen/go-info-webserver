@@ -41,7 +41,7 @@ func logWebRequest(r *http.Request) {
 
 	d, err := httputil.DumpRequest(r, true)
 	if err != nil {
-		fmt.Println("failed to dump http request %v", err)
+		fmt.Printf("failed to dump http request %v\n", err)
 		return
 	}
 
