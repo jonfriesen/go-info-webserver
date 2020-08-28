@@ -1,3 +1,3 @@
 #!/bin/sh
 
-export -p > build-time-envs
+printenv > build-time-envs

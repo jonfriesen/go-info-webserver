@@ -2,4 +2,4 @@
 
 # this is run during CNB builds
 
-export -p > bin/build-time-envs
+printenv > build-time-envs
