@@ -9,6 +9,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -60,6 +61,8 @@ func infoServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, "hostname: %s\n", hostname)
+	
+	fmt.Fprintf(w, "server time: %s\n", time.Now().String())
 
 	fmt.Fprintln(w, "\n\nRuntime Environment Variables:")
 	for _, e := range os.Environ() {
