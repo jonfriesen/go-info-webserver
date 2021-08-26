@@ -54,6 +54,11 @@ func main() {
 
 		fmt.Fprintln(w, v)
 	})
+	r.HandleFunc("/504", func(w http.ResponseWriter, r *http.Request) {
+		logWebRequest(r)
+		http.Error(w, http.StatusText(http.StatusGatewayTimeout), http.StatusGatewayTimeout)
+
+	})
 
 	fmt.Println("Starting server on port 8080")
 	http.ListenAndServe(":8080", r)
