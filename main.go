@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/tls"
 	"crypto/x509"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,6 +16,11 @@ import (
 
 	"github.com/gorilla/mux"
 
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+
+	"github.com/xo/dburl"
+
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -23,13 +29,15 @@ import (
 func main() {
 	buildVariables, err := loadBuildVars()
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", infoServer)
 	r.HandleFunc("/mongo", testMongoConnection)
+	r.HandleFunc("/mysql", testMYSQLConnection)
+	r.HandleFunc("/postgres", testPostgresConnection)
 	r.HandleFunc("/envs/build/{buildVar}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		buildVar := vars["buildVar"]
@@ -55,8 +63,19 @@ func main() {
 		fmt.Fprintln(w, v)
 	})
 
-	fmt.Println("Starting server on port 8080")
-	http.ListenAndServe(":8080", r)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "80"
+	}
+
+	bindAddr := fmt.Sprintf(":%s", port)
+
+	fmt.Printf("==> Server listening at %s 🚀\n", bindAddr)
+
+	err = http.ListenAndServe(bindAddr, r)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func infoServer(w http.ResponseWriter, r *http.Request) {
@@ -171,4 +190,70 @@ func testMongoConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintln(w, "connection & ping succesful")
+}
+
+func testMYSQLConnection(w http.ResponseWriter, r *http.Request) {
+	logWebRequest(r)
+
+	uri := os.Getenv("DATABASE_URL")
+	if uri == "" {
+		w.WriteHeader(http.StatusNotImplemented)
+		fmt.Fprint(w, "no DATABASE_URL env var")
+		return
+	}
+
+	dbURL, err := dburl.Parse(uri)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "parsing DATABASE_URL")
+		return
+	}
+
+	dbPassword, _ := dbURL.User.Password()
+	dbName := strings.Trim(dbURL.Path, "/")
+	connectionString := fmt.Sprintf("%s:%s@(%s:%s)/%s?charset=utf8&parseTime=true",
+		dbURL.User.Username(), dbPassword, dbURL.Hostname(), dbURL.Port(), dbName)
+
+	db, err := sql.Open("mysql", connectionString)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error connecting to the database: "+err.Error())
+		return
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error connecting to the database: "+err.Error())
+		return
+	}
+
+	fmt.Fprint(w, "Successfully connected and pinged mysql.")
+}
+
+func testPostgresConnection(w http.ResponseWriter, r *http.Request) {
+	connectionString := os.Getenv("DATABASE_URL")
+	if connectionString == "" {
+		w.WriteHeader(http.StatusNotImplemented)
+		fmt.Fprint(w, "no DATABASE_URL env var")
+		return
+	}
+
+	db, err := sql.Open("postgres", connectionString)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error connecting to the database: "+err.Error())
+		return
+	}
+	defer db.Close()
+
+	err = db.Ping()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, "error connecting to the database: "+err.Error())
+		return
+	}
+
+	fmt.Fprint(w, "Successfully connected and pinged postgres.")
 }

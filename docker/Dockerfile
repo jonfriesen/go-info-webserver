@@ -1,4 +1,4 @@
-FROM golang:1.14.2-buster
+FROM golang:1.18.4
 
 ARG BUILDTIME_VARIABLE="default value"
 ARG BUILDTIME_VARIABLE_TWO="default value"
