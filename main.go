@@ -10,8 +10,11 @@ import (
 	"log"
 	"net/http"
 	"net/http/httputil"
+	"net/url"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -35,6 +38,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", infoServer)
+	r.HandleFunc("/loadtest", loadTest)
 	r.HandleFunc("/mongo", testMongoConnection)
 	r.HandleFunc("/mysql", testMYSQLConnection)
 	r.HandleFunc("/postgres", testPostgresConnection)
@@ -103,6 +107,54 @@ func infoServer(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, string(b))
 }
 
+func loadTest(w http.ResponseWriter, r *http.Request) {
+	logWebRequest(r)
+
+	startTime := time.Now()
+
+	targetString := r.URL.Query().Get("target")
+	if targetString == "" {
+		fmt.Fprintln(w, "add a query param for target=? to start spamming")
+		return
+	}
+
+	target, err := url.Parse(targetString)
+	if err != nil {
+		fmt.Fprintf(w, "target url parsing error: %s", err.Error())
+		return
+	}
+
+	requestsCount := 1000
+	if r := r.URL.Query().Get("load"); r != "" {
+		var err error
+		requestsCount, err = strconv.Atoi(r)
+		if err != nil {
+			fmt.Fprintln(w, "could not convert load value to an integer")
+			return
+		}
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < requestsCount; i++ {
+		i := i
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := http.Get(target.String())
+			if err != nil {
+
+				log.Printf("Call %d: %s", i, err.Error())
+				return
+			}
+			logWebResponse(resp)
+		}()
+	}
+
+	wg.Wait()
+
+	fmt.Fprintf(w, "finished calls in %s", time.Since(startTime))
+}
+
 func logWebRequest(r *http.Request) {
 
 	d, err := httputil.DumpRequest(r, true)
@@ -112,6 +164,17 @@ func logWebRequest(r *http.Request) {
 	}
 
 	fmt.Println("Request:\n" + string(d) + "\n")
+}
+
+func logWebResponse(r *http.Response) {
+
+	d, err := httputil.DumpResponse(r, false)
+	if err != nil {
+		fmt.Printf("failed to dump http response %v\n", err)
+		return
+	}
+
+	fmt.Println("Response:\n" + string(d) + "\n")
 }
 
 func loadBuildVars() (map[string]string, error) {
