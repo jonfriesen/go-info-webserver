@@ -1,0 +1,32 @@
+name: Push Docker Image to DOCR
+
+on:
+  push:
+    branches: [ "master" ]
+
+env:
+  REGISTRY: "registry.digitalocean.com/jon"
+  IMAGE_NAME: "go-info-webserver"
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build the Docker image
+      run: docker build --file docker/Dockerfile --tag $(echo $REGISTRY)/$(echo $IMAGE_NAME):$(echo $GITHUB_SHA | head -c7) --tag $(echo $REGISTRY)/$(echo $IMAGE_NAME):latest .
+
+    - name: Install doctl
+      uses: digitalocean/action-doctl@v2
+      with:
+        token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+    - name: Auth with DOCR
+      run: doctl registry login --expiry-seconds 1000
+
+    - name: Push image to DOCR
+      run: docker push $(echo $REGISTRY)/$(echo $IMAGE_NAME) --all-tags
