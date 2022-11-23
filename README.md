@@ -18,3 +18,4 @@ Is a Go app for App Platform that exposes build and runtime environment variable
 7
 8
 9
+10
