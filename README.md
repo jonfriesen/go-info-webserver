@@ -13,3 +13,4 @@ Is a Go app for App Platform that exposes build and runtime environment variable
 6
 7
 8
+9
