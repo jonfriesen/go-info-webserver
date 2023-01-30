@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ func main() {
 	r := mux.NewRouter()
 
 	r.HandleFunc("/", infoServer)
+	r.HandleFunc("/tree", tree)
 	r.HandleFunc("/mongo", testMongoConnection)
 	r.HandleFunc("/mysql", testMYSQLConnection)
 	r.HandleFunc("/postgres", testPostgresConnection)
@@ -256,4 +258,16 @@ func testPostgresConnection(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprint(w, "Successfully connected and pinged postgres.")
+}
+
+func tree(w http.ResponseWriter, r *http.Request) {
+	out, err := exec.Command("tree").Output()
+
+	if err != nil {
+		// log.Fatal(err)
+		fmt.Fprint(w, err.Error())
+		return
+	}
+
+	fmt.Fprint(w, string(out))
 }
